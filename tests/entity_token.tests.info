@@ -1,0 +1,5 @@
+[EntityTokenTestCase]
+name = Entity token functionality
+description = Tests provided tokens for entity properties.
+group = Entity token
+file = entity_token.test

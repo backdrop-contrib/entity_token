@@ -1,6 +1,7 @@
 name = Entity tokens
 description = Provides token replacements for all properties that have no tokens and are known to the entity API.
-core = 7.x
-files[] = entity_token.tokens.inc
-files[] = entity_token.module
+backdrop = 1.x
+type = module
+
 dependencies[] = entity
+dependencies[] = entity_plus

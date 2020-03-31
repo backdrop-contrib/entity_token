@@ -13,7 +13,7 @@
  */
 function entity_token_types() {
   $return = entity_token_types_chained();
-  return $return + drupal_map_assoc(array('text', 'integer', 'decimal', 'duration', 'boolean', 'uri'));
+  return $return + backdrop_map_assoc(array('text', 'integer', 'decimal', 'duration', 'boolean', 'uri'));
 }
 
 /**
@@ -26,12 +26,12 @@ function entity_token_types() {
  */
 function entity_token_types_chained($type = NULL) {
   // This functions gets called rather often when replacing tokens, thus
-  // we statically cache $types using the advanced drupal static pattern.
-  static $drupal_static_fast;
-  if (!isset($drupal_static_fast)) {
-    $drupal_static_fast['types'] = &drupal_static(__FUNCTION__, array());
+  // we statically cache $types using the advanced backdrop static pattern.
+  static $backdrop_static_fast;
+  if (!isset($backdrop_static_fast)) {
+    $backdrop_static_fast['types'] = &backdrop_static(__FUNCTION__, array());
   }
-  $types = &$drupal_static_fast['types'];
+  $types = &$backdrop_static_fast['types'];
 
   if (!$types) {
     // Add entities.
@@ -48,7 +48,7 @@ function entity_token_types_chained($type = NULL) {
   }
 
   if (isset($type)) {
-    return isset($types[$type]) || entity_property_list_extract_type($type);
+    return isset($types[$type]) || entity_plus_property_list_extract_type($type);
   }
   return $types;
 }
@@ -57,7 +57,7 @@ function entity_token_types_chained($type = NULL) {
  * Gets the right token type for a given property info array.
  */
 function _entity_token_map_to_token_type($property_info) {
-  $lookup = &drupal_static(__FUNCTION__);
+  $lookup = &backdrop_static(__FUNCTION__);
 
   if (!$lookup) {
     // Initialize a lookup array mapping property types to token types.
@@ -70,7 +70,7 @@ function _entity_token_map_to_token_type($property_info) {
     $type = 'struct';
   }
 
-  if ($item_type = entity_property_list_extract_type($type)) {
+  if ($item_type = entity_plus_property_list_extract_type($type)) {
     return isset($lookup[$item_type]) ? "list<$lookup[$item_type]>" : FALSE;
   }
   return isset($lookup[$type]) ? $lookup[$type] : FALSE;
@@ -88,7 +88,7 @@ function entity_token_token_info_alter(&$info) {
   foreach ($token_types as $token_type => $type) {
     // Just add all properties regardless whether it's in a bundle, but only if
     // there is no token of the property yet.
-    foreach (entity_get_all_property_info($type) as $name => $property) {
+    foreach (entity_plus_get_all_property_info($type) as $name => $property) {
       $name = str_replace('_', '-', $name);
       $property += array('type' => 'text', 'description' => $property['label']);
       $property_token_type = _entity_token_map_to_token_type($property);
@@ -129,8 +129,8 @@ function entity_token_token_info_alter(&$info) {
       }
       else {
         $info['types'][$token_type] = array(
-          'name' => drupal_strtoupper($token_type),
-          'description' => t('@name tokens.', array('@name' => drupal_strtoupper($token_type))),
+          'name' => backdrop_strtoupper($token_type),
+          'description' => t('@name tokens.', array('@name' => backdrop_strtoupper($token_type))),
           'needs-data' => $token_type,
         );
       }
@@ -276,7 +276,7 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
  */
 function _entity_token_wrap_data($token_type, $type, $data, $options) {
   if ($type == 'site') {
-    $wrapper = entity_metadata_site_wrapper();
+    $wrapper = entity_token_metadata_site_wrapper();
   }
   elseif ($type == 'struct') {
     // 'struct' data items are passed on wrapped.
