@@ -215,7 +215,7 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
     }
   }
   // Add support for evaluating tokens for "list<type"> types.
-  elseif ($item_token_type = entity_property_list_extract_type($type)) {
+  elseif ($item_token_type = entity_plus_property_list_extract_type($type)) {
     foreach ($tokens as $name => $original) {
       // Care about getting entries of a list.
       if (is_numeric($name)) {
