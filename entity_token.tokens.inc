@@ -89,7 +89,6 @@ function entity_token_token_info_alter(&$info) {
     // Just add all properties regardless whether it's in a bundle, but only if
     // there is no token of the property yet.
     foreach (entity_plus_get_all_property_info($type) as $name => $property) {
-      $name = str_replace('_', '-', $name);
       $property += array('type' => 'text', 'description' => $property['label']);
       $property_token_type = _entity_token_map_to_token_type($property);
 
@@ -178,10 +177,9 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
       // Provide the token for all properties marked to stem from us.
       if (!empty($info['tokens'][$type][$name]['entity-token']) || $type == 'struct') {
         $wrapper = !isset($wrapper) ? _entity_token_wrap_data($type, $token_types[$type], $data[$type], $options) : $wrapper;
-        $property_name = str_replace('-', '_', $name);
         try {
-          if (isset($wrapper->$property_name)) {
-            $replacement = _entity_token_get_token($wrapper->$property_name, $options);
+          if (isset($wrapper->$name)) {
+            $replacement = _entity_token_get_token($wrapper->$name, $options);
             if (isset($replacement)) {
               $replacements[$original] = $replacement;
             }
@@ -200,11 +198,10 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
 
         if ($chained_tokens = token_find_with_prefix($tokens, $name)) {
           $wrapper = !isset($wrapper) ? _entity_token_wrap_data($type, $token_types[$type], $data[$type], $options) : $wrapper;
-          $property_name = str_replace('-', '_', $name);
 
           try {
             // Pass on 'struct' properties wrapped, else un-wrap the data.
-            $value = ($token_info['type'] == 'struct') ? $wrapper->$property_name : $wrapper->$property_name->value();
+            $value = ($token_info['type'] == 'struct') ? $wrapper->$name : $wrapper->$name->value();
             $replacements += token_generate($token_info['type'], $chained_tokens, array($token_info['type'] => $value), $options);
           }
           catch (EntityMetadataWrapperException $e) {
