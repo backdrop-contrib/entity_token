@@ -17,7 +17,8 @@ for complete text.
 CURRENT MAINTAINERS
 ---------------    
 
-Looking for maintainers
+- [argiepiano](https://github.com/argiepiano)
+- Seeking co-maintainers
 
 CREDITS   
 --------------- 
