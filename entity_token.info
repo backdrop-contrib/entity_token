@@ -4,4 +4,4 @@ backdrop = 1.x
 type = module
 
 dependencies[] = entity
-dependencies[] = entity_plus
+dependencies[] = entity_plus (>1.x-1.0.13)
