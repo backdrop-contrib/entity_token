@@ -6,18 +6,6 @@
  */
 
 /**
- * Implements hook_field_info_alter().
- */
-function entity_token_field_info_alter(&$info) {
-  foreach (array('date', 'datetime', 'datestamp') as $date_type) {
-    if (isset($info[$date_type])) {
-      $info[$date_type]['property_type'] = 'date';
-      $info[$date_type]['property_callbacks'][] = 'date_entity_metadata_property_info_alter';
-    }
-  }
-}
-
-/**
  * Returns a metadata wrapper for accessing site-wide properties.
  *
  * Although there is no 'site' entity or such, modules may provide info about
