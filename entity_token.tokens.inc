@@ -194,7 +194,7 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
           $field_name = $name_parts[0];
           $field_info = field_info_field($field_name);
           // Only add fields to the list. Do not add image or date fields as those are fulfilled by core.
-          if (empty($field_info($field_info)) 
+          if (empty($field_info) 
             || strpos($field_info['type'], 'date') !== FALSE 
             || strpos($field_info['type'], 'image') !== FALSE)  {
             continue;
