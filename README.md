@@ -5,6 +5,9 @@ Entity Tokens
 Provides token replacements for all properties that have no tokens and are
 known to the entity API. Enable to use.
 
+IMPORTANT: Version 2 is the recommended version. Version 1 more closely
+resemebles the Drupal version, but presents several unresolved issues.
+
 Version 2.x of Entity Tokens has been rewritten to:
 - Automatically provide tokens for custom entities' properties
 - Allow the use of chained field tokens that mimic the chained properties of entity metadata wrappers
