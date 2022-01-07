@@ -283,7 +283,7 @@ function _entity_token_wrap_data($token_type, $type, $data, $options) {
     $wrapper = entity_metadata_wrapper($type, $data);
   }
   if (isset($options['language']) && $wrapper instanceof EntityStructureWrapper) {
-    $wrapper->language($options['language']->language);
+    $wrapper->language($options['language']->langcode);
   }
   return $wrapper;
 }
@@ -302,7 +302,7 @@ function _entity_token_get_token($wrapper, $options) {
     // When we don't need sanitized tokens decode already sanitizied texts.
     $options['decode'] = TRUE;
   }
-  $langcode = isset($options['language']) ? $options['language']->language : NULL;
+  $langcode = isset($options['language']) ? $options['language']->langcode : NULL;
 
   // If there is a label for a property, e.g. defined by an options list or an
   // entity label, make use of it.
