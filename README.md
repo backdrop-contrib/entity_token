@@ -23,8 +23,8 @@ is now located in Entity Plus version >= 1.0.14.
 **Note on Drupal compatibility:** Unlike the Drupal 7 version, this Backdrop
 version uses underscores in tokens rather than dashes.
 
-EXAMPLES OF CHAINED FIELD TOKENS
----------------------------------
+Examples of chained field tokens
+--------------------------------
 
 All unchained field tokens, and all chained date and image field tokes are handled by Backdrop's core. 
 Entity Tokens handles all other chained field tokens for known field types provided in core.
@@ -33,6 +33,12 @@ Entity Tokens handles all other chained field tokens for known field types provi
 - [node:field_my_formatted_text:format] = Provides the format name for a formatted text field attached to a node.
 - [node:field_link_multiple:1:url] = Provides the URL of the second value of a multi-value link field.
 - [node:field_text_with_summary:summary] = Provides the summary of a long text with summary field.
+
+Requirements
+------------
+This module requires that the following modules are also enabled:
+
+* [Entity Plus](https://github.com/backdrop-contrib/entity_plus)
 
 LICENSE
 -------
