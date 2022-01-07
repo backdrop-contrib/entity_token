@@ -35,8 +35,8 @@ function date_entity_metadata_property_info_alter(&$info, $entity_type, $field, 
     // Define a simple data structure containing both dates.
     $property['type'] = ($field['cardinality'] != 1) ? 'list<struct>' : 'struct';
     $property['auto creation'] = 'date_entity_metadata_struct_create';
-    $property['getter callback'] = 'entity_metadata_field_verbatim_get';
-    $property['setter callback'] = 'entity_metadata_field_verbatim_set';
+    $property['getter callback'] = 'entity_plus_metadata_field_verbatim_get';
+    $property['setter callback'] = 'entity_plus_metadata_field_verbatim_set';
     $property['property info'] = array(
       'value' => array(
         'type' => 'date',
