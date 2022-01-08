@@ -165,14 +165,15 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
 
   // Process tokens when passing data for an entity
   if (isset($data[$type]) && !empty($data[$type]) && $type !== 'wrapped-field' && is_a($data[$type], 'Entity')) {
-    $wrapper = entity_metadata_wrapper($type, $data[$type]);
+    $entity_type = $data[$type]->entityType();
+    $wrapper = entity_metadata_wrapper($entity_type, $data[$type]);
     $entity_properties = $wrapper->getPropertyInfo();
     $field_name_list = array();
     $property_name_list = array();
 
     foreach ($tokens as $name => $original) {
       // Fulfill simple, unchained, D7 legacy tokens for core entities, and unchained tokens for custom entities.
-      if ((_entity_token_is_core_entity($type) && in_array($name, entity_token_legacy_properties())) || (!_entity_token_is_core_entity($type) && !strpos($name, ':'))) {
+      if ((_entity_token_is_core_entity($entity_type) && in_array($name, entity_token_legacy_properties())) || (!_entity_token_is_core_entity($entity_type) && !strpos($name, ':'))) {
         // Skip if this is an unchained field - those are fulfilled by core.
         if(!empty($field_info_map[$name])) {
           continue;
@@ -186,10 +187,11 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
           }
         }
         catch (EntityMetadataWrapperException $e) {
-          // If getting values generate an error, do nothing. This may happen if the property info is not defined
+          // If getting values generate an error, do nothing. This may happen if the property info is not defined.
         }
-      } 
-      // Collect field names for all chained field tokens. Non-chained field tokens are handled in core.
+      }
+
+      // Care for chained field tokens, and for chained non-field tokens of non-core entities.
       elseif (strpos($name, ':') !== FALSE) {
         $name_parts = explode(':', $name);
         // Check if this is a field
@@ -204,7 +206,7 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
             }
           } 
           // Care for non-field chained tokens, but ONLY if the entity is not a core entity.
-          elseif (!_entity_token_is_core_entity($type)) {
+          elseif (!_entity_token_is_core_entity($entity_type)) {
             $property_name_list[$field_name] = TRUE;
           }
         }
@@ -269,6 +271,9 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
         if (is_numeric($name_parts[0])) {
           $new_data = $wrapper;
         }
+      } elseif (is_a($wrapper->value(), 'Entity')) {
+        // Care for entity reference fields. Pass the entity itself.
+        $new_data = $wrapper->value();
       }
 
       if (!empty($replacement) || (string) $replacement === '0') {
