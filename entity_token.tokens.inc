@@ -12,11 +12,9 @@
  * and all tokens for fields, we are very selective with the list
  * of tokens we provide here. We provide tokens not included in core.
  */
-// Leave these for last. They are used just for display!
 function entity_token_token_info_alter(&$info) {
 
-  // Provide D7 Entity Tokens legacy tokens not provided by Backdrop core
-
+  // Provide D7 Entity Tokens legacy tokens not provided by Backdrop core.
   // Tokens for type node.
   $info['tokens']['node']['is_new'] = array(
     'name' => 'Is new',
@@ -103,7 +101,7 @@ function entity_token_token_info_alter(&$info) {
     $token_type_for_entity = isset($entity_info_array['token type']) ? $entity_info_array['token type'] : $entity_name;
 
     // Create types for all non-core entities
-    if (!in_array($entity_name, array('node', 'file', 'user', 'taxonomy_term', 'comment'))) {
+    if (!_entity_token_is_core_entity($entity_name)) {
       $info['types'][$token_type_for_entity] = array(
         'name' => $entity_info[$entity_name]['label'],
         'description' => t('Tokens related to the "@name" entities.', array('@name' => $entity_info[$entity_name]['label'])),
@@ -163,8 +161,7 @@ function entity_token_token_info_alter(&$info) {
  */
 function entity_token_tokens($type, $tokens, array $data = array(), array $options = array()) {
   $replacements = array();
-  $sanitize = !empty($options['sanitize']);
-  $langcode = isset($options['language']) ? $options['language']->langcode : LANGUAGE_NONE;
+  $field_info_map = field_info_field_map();
 
   // Process tokens when passing data for an entity
   if (isset($data[$type]) && !empty($data[$type]) && $type !== 'wrapped-field' && is_a($data[$type], 'Entity')) {
@@ -172,8 +169,12 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
     $field_name_list = array();
 
     foreach ($tokens as $name => $original) {
-      // Fulfill simple, unchained, D7 legacy entity tokens not provided in core.
-      if (in_array($name, entity_token_legacy_properties())) {
+      // Fulfill simple, unchained, D7 legacy tokens for core entities, and unchained tokens for custom entities.
+      if ((_entity_token_is_core_entity($type) && in_array($name, entity_token_legacy_properties())) || (!_entity_token_is_core_entity($type) && !strpos($name, ':'))) {
+        // Skip if this is an unchained field - those are fulfilled by core.
+        if(!empty($field_info_map[$name])) {
+          continue;
+        }
         try {
           if (isset($wrapper->$name)) {
             $replacement = _entity_token_get_token($wrapper->$name, $options);
@@ -192,11 +193,10 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
         // Check if this is a field
         if (!empty($name_parts[0]) && isset($wrapper->{$name_parts[0]}) ) {
           $field_name = $name_parts[0];
-          $field_info = field_info_field($field_name);
           // Only add fields to the list. Do not add image or date fields as those are fulfilled by core.
-          if (empty($field_info) 
-            || strpos($field_info['type'], 'date') !== FALSE 
-            || strpos($field_info['type'], 'image') !== FALSE)  {
+          if (empty($field_info_map[$field_name]) 
+            || strpos($field_info_map[$field_name]['type'], 'date') !== FALSE 
+            || strpos($field_info_map[$field_name]['type'], 'image') !== FALSE)  {
             continue;
           }
           // Collect the name of the field
@@ -437,8 +437,8 @@ function _entity_token_get_token($wrapper, $options) {
 /**
  * Helper to determine the token type based on the property info
  */
-function entity_token_determine_type($property_info) { 
-  $property_type = $property_info['type'];
+function entity_token_determine_type($property_info) {
+  $property_type = !empty($property_info['type']) ? $property_info['type'] : 'text';
   $is_list = strpos($property_type, 'list') !== FALSE;
   if ($is_list) {
     $property_type = entity_plus_property_list_extract_type($property_type);
@@ -516,4 +516,24 @@ function _entity_token_get_entity_from_token($token_type) {
       // for text for example
       return NULL;
   }
+}
+
+/** 
+ * Check if entity type is one of the core entities.
+ * 
+ * @param string $entity_type
+ *   The entity type.
+ * 
+ * @return bool
+ *   Whether the entity type is one of the core entities.
+ */
+function _entity_token_is_core_entity($entity_type) {
+  return in_array($entity_type, array(
+    'node',
+    'file',
+    'comment',
+    'user',
+    'taxonomy_term',
+  )
+  );
 }
