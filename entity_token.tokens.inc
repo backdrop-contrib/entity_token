@@ -137,6 +137,10 @@ function entity_token_token_info_alter(&$info) {
       // make the token type a struct, and add the keys to
       // the token description.
       if (isset($property['property info'])) {
+        // There are instances when properties use underscores and existing tokens use
+        // dashes (e.g. ubercart shipping_address). If  that's the case, use the existing name with dashes.
+        $name = isset($info['tokens'][$token_type_for_entity][$name_with_dashes]) ? $name_with_dashes : $name;
+
         $info['tokens'][$token_type_for_entity][$name]['type'] = 'struct';
         $help = array();
         foreach ($property['property info'] as $key => $property_info) {
