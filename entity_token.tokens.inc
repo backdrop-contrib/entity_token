@@ -19,56 +19,69 @@ function entity_token_token_info_alter(&$info) {
   $info['tokens']['node']['is_new'] = array(
     'name' => 'Is new',
     'description' => t('Whether the node is new and not saved to the database yet.'),
-    'type' => 'boolean'
+    'type' => 'boolean',
+    'entity-token' => TRUE,
   );
   $info['tokens']['node']['status'] = array(
     'name' => 'Status',
     'description' => t('Whether the node is published or unpublished.'),
+    'entity-token' => TRUE,
   );
   $info['tokens']['node']['promoted'] = array(
     'name' => 'Promoted to frontpage',
     'description' => t('Whether the node is promoted to the frontpage.'),
+    'entity-token' => TRUE,
   );
   $info['tokens']['node']['sticky'] = array(
     'name' => 'Sticky in lists',
     'description' => t('Whether the node is displayed at the top of lists in which it appears.'),
+    'entity-token' => TRUE,
   );
   $info['tokens']['node']['revision'] = array(
     'name' => 'Creates revision',
     'description' => t('Whether saving this node creates a new revision.'),
+    'entity-token' => TRUE,
   );
 
+  // Tokens for type comment.
   $info['tokens']['comment']['subject'] = array(
     'name' => 'Subject',
     'description' => t('The subject of the comment.'),
+    'entity-token' => TRUE,
   );
   $info['tokens']['comment']['status'] = array(
     'name' => 'Status',
     'description' => t('Whether the comment is published or unpublished.'),
+    'entity-token' => TRUE,
   );
   $info['tokens']['comment']['comment_body'] = array(
     'name' => 'Comment',
     'description' => t('Field "comment_body". The following properties may be appended to the token: value (Text), format (Text format)'),
+    'entity-token' => TRUE,
   );
 
   // Tokens for type user.
   $info['tokens']['user']['status'] = array(
     'name' => 'Status',
     'description' => t('Whether the user is active or blocked.'),
+    'entity-token' => TRUE,
   );
   $info['tokens']['user']['last_access'] = array(
     'name' => 'Last access',
     'description' => t('The date the user last accessed the site.'),
     'type' => 'date',
+    'entity-token' => TRUE,
   );
   $info['tokens']['user']['theme'] = array(
     'name' => 'Default theme',
     'description' => t('The user\'s default theme.'),
+    'entity-token' => TRUE,
   );
 
   $info['tokens']['current-user']['status'] = array(
     'name' => 'Status',
     'description' => t('Whether the user is active or blocked.'),
+    'entity-token' => TRUE,
   );
 
   // Tokens for type site
@@ -76,11 +89,13 @@ function entity_token_token_info_alter(&$info) {
     'name' => 'Logged in user',
     'description' => t('The currently logged in user.'),
     'type' => 'user',
+    'entity-token' => TRUE,
   );
   $info['tokens']['site']['current_page'] = array(
     'name' => 'Current page',
     'description' => t('Information related to the current page request. The following properties may be appended to the token: path (Path), url (URL)'),
     'type' => 'struct',
+    'entity-token' => TRUE,
   );
 
   // Tokens for type term.
@@ -88,10 +103,12 @@ function entity_token_token_info_alter(&$info) {
     'name' => 'All parent terms',
     'description' => t('Ancestors of the term, i.e. parent of all above hierarchy levels.'),
     'type' => 'list<term>',
+    'entity-token' => TRUE,
   );
   $info['tokens']['term']['weight'] = array(
     'name' => 'Weight',
     'description' => t('The weight of the term, which is used for ordering terms during display.'),
+    'entity-token' => TRUE,
   );
 
   // Add types and tokens for all properties of entities that don't have one.
@@ -100,8 +117,8 @@ function entity_token_token_info_alter(&$info) {
   foreach ($entity_info as $entity_name => $entity_info_array) {
     $token_type_for_entity = isset($entity_info_array['token type']) ? $entity_info_array['token type'] : $entity_name;
 
-    // Create types for all non-core entities
-    if (!_entity_token_is_core_entity($entity_name)) {
+    // Create token types for all non-core entities that don't already exist.
+    if (!_entity_token_is_core_entity($entity_name) && !isset(['types'][$token_type_for_entity])) {
       $info['types'][$token_type_for_entity] = array(
         'name' => $entity_info[$entity_name]['label'],
         'description' => t('Tokens related to the "@name" entities.', array('@name' => $entity_info[$entity_name]['label'])),
@@ -109,7 +126,7 @@ function entity_token_token_info_alter(&$info) {
       );
     }
 
-    // Create token definitions for each property.
+    // Create token definitions for entity properties and fields.
     foreach (entity_plus_get_all_property_info($entity_name) as $name => $property) {
       // Skip touching the definitions for image and date fields, 
       // as these are created in core.
@@ -124,13 +141,15 @@ function entity_token_token_info_alter(&$info) {
           'name' => $property['label'],
           'description' => t($property['description']),
           'type' => entity_token_determine_type($property),
+          'entity-token' => TRUE,
         );
       }
       
-      // Add explanatory description for multi-value fields.
-      if (!empty($property['field']) && entity_plus_property_list_extract_type($property['type'])) {
+      // Add explanatory description for multi-value fields. Add extracted type so that info tree is built correctly.
+      if (!empty($property['field']) && $extracted_type = entity_plus_property_list_extract_type(entity_token_determine_type($property))) {
         $info['tokens'][$token_type_for_entity][$name]['dynamic'] = TRUE;
         $info['tokens'][$token_type_for_entity][$name]['description'] .= ' ' . t('Replace the ? with the delta for multi-value fields.');
+        $info['tokens'][$token_type_for_entity][$name]['type'] = $extracted_type;
       }
 
       // If field provides a structure (e.g. formatted text fields)
@@ -138,7 +157,7 @@ function entity_token_token_info_alter(&$info) {
       // the token description.
       if (isset($property['property info'])) {
         // There are instances when properties use underscores and existing tokens use
-        // dashes (e.g. ubercart shipping_address). If  that's the case, use the existing name with dashes.
+        // dashes (e.g. ubercart shipping_address). If that's the case, use the existing name with dashes.
         $name = isset($info['tokens'][$token_type_for_entity][$name_with_dashes]) ? $name_with_dashes : $name;
 
         $info['tokens'][$token_type_for_entity][$name]['type'] = 'struct';
@@ -160,12 +179,13 @@ function entity_token_token_info_alter(&$info) {
  *  - A few unimplemented simple tokens for various entities (legacy from D7 entity_token).
  *  - Field tokens that contain chains (fields without chains are fulfilled by field_tokens()), 
  *    except chained image and date fields that are processed by core.
- *  - Fields with chains that include a delta value.
- *  - Tokens types such as list<something>.
+ *  - Chained field tokens (except chained date and image field tokens).
+ *  - Tokens types such as list<something> that are multi-value.
  */
 function entity_token_tokens($type, $tokens, array $data = array(), array $options = array()) {
   $replacements = array();
   $field_info_map = field_info_field_map();
+  $token_info = token_get_info();
 
   // Process tokens when passing data for an entity
   if (isset($data[$type]) && !empty($data[$type]) && $type !== 'wrapped-field' && is_a($data[$type], 'Entity')) {
@@ -177,7 +197,8 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
 
     foreach ($tokens as $name => $original) {
       // Fulfill simple, unchained, D7 legacy tokens for core entities, and unchained tokens for custom entities.
-      if ((_entity_token_is_core_entity($entity_type) && in_array($name, entity_token_legacy_properties())) || (!_entity_token_is_core_entity($entity_type) && !strpos($name, ':'))) {
+      if (isset($token_info['tokens'][$type][$name]) && isset($token_info['tokens'][$type][$name]['entity-token']) && $token_info['tokens'][$type][$name]['entity-token']) {
+        
         // Skip if this is an unchained field - those are fulfilled by core.
         if(!empty($field_info_map[$name])) {
           continue;
@@ -194,7 +215,6 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
           // If getting values generate an error, do nothing. This may happen if the property info is not defined.
         }
       }
-
       // Care for chained field tokens, and for chained non-field tokens of non-core entities.
       elseif (strpos($name, ':') !== FALSE) {
         $name_parts = explode(':', $name);
@@ -209,8 +229,8 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
               $field_name_list[$field_name] = TRUE;
             }
           } 
-          // Care for non-field chained tokens, but ONLY if the entity is not a core entity.
-          elseif (!_entity_token_is_core_entity($entity_type)) {
+          // Care for non-field chained tokens, but ONLY if this is "ours".
+          elseif (isset($token_info['tokens'][$type][$field_name]) && isset($token_info['tokens'][$type][$field_name]['entity-token']) && $token_info['tokens'][$type][$field_name]['entity-token']) {
             $property_name_list[$field_name] = TRUE;
           }
         }
@@ -275,6 +295,7 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
         if (is_numeric($name_parts[0])) {
           $new_data = $wrapper;
         }
+
       } elseif (is_a($wrapper->value(), 'Entity')) {
         // Care for entity reference fields. Pass the entity itself.
         $new_data = $wrapper->value();
@@ -283,6 +304,7 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
       if (!empty($replacement) || (string) $replacement === '0') {
         // Produce the replacement here
         $replacements[$original] = $replacement;
+
       } elseif (!empty($new_data)) {
         // Generate tokens for struct and list<something>
         $replacements += token_generate($token_type_from_wrapper, array($name => $original), array($token_type_from_wrapper => $new_data), $options);
@@ -340,7 +362,7 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
 
             default:
               // We pass the value, since most likely this is not fulfilled in this module
-              $pass_data = _entity_token_get_token($data[$type]->get($name_parts[0]), $options);
+              $pass_data = $data[$type]->get($name_parts[0])->value();
               break;
           }
         } catch (EntityMetadataWrapperException $e) {
@@ -556,6 +578,11 @@ function _entity_token_is_core_entity($entity_type) {
     'comment',
     'user',
     'taxonomy_term',
+    // Since Ubercart defines tokens quite extensively
+    // we treat its entities as core to avoid duplications.
+    'uc_order',
+    'uc_cart_item',
+    'uc_order_product',
   )
   );
 }
