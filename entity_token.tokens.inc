@@ -87,14 +87,8 @@ function entity_token_token_info_alter(&$info) {
   // Tokens for type site
   $info['tokens']['site']['current_user'] = array(
     'name' => 'Logged in user',
-    'description' => t('The currently logged in user.'),
+    'description' => t('The currently logged in user. The following properties may be appended to the token: name, mail, url, roles, status.'),
     'type' => 'user',
-    'entity-token' => TRUE,
-  );
-  $info['tokens']['site']['current_page'] = array(
-    'name' => 'Current page',
-    'description' => t('Information related to the current page request. The following properties may be appended to the token: path (Path), url (URL)'),
-    'type' => 'struct',
     'entity-token' => TRUE,
   );
 
@@ -139,7 +133,7 @@ function entity_token_token_info_alter(&$info) {
       if (!isset($info['tokens'][$token_type_for_entity][$name]) && !isset($info['tokens'][$token_type_for_entity][$name_with_dashes])) {
         $info['tokens'][$token_type_for_entity][$name] = array(
           'name' => $property['label'],
-          'description' => t($property['description']),
+          'description' => !empty($property['description']) ? t($property['description']) : '',
           'type' => entity_token_determine_type($property),
           'entity-token' => TRUE,
         );
@@ -401,6 +395,42 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
       }
     }
   }
+  // Provide for the site tokens not provided in core.
+  elseif ($type == 'site') {
+    $wrapper = entity_plus_metadata_site_wrapper();
+    $chained_token_names = array();
+    foreach ($tokens as $name => $original) {
+      if (!empty($token_info['tokens'][$type][$name]['entity-token'])) {;
+        try {
+          if (isset($wrapper->$name)) {
+            $replacement = _entity_token_get_token($wrapper->$name, $options);
+            if (isset($replacement)) {
+              $replacements[$original] = $replacement;
+            }
+          }
+        } 
+        catch (EntityMetadataWrapperException $e) {
+
+        }
+      }
+      // Care for chained site tokens
+      elseif (strpos($name, ':') !== FALSE) {
+        $name_parts = explode(':', $name);
+        // Check if this is a property
+        if (!empty($name_parts[0]) && isset($wrapper->{$name_parts[0]}) ) {
+          $token_name = $name_parts[0];
+          // Collect the name of the property
+          $chained_token_names[$token_name] = TRUE;
+        }
+      }
+    }
+    foreach (array_keys($chained_token_names) as $token_name) {
+      $chained_tokens = token_find_with_prefix($tokens, $token_name);
+      if (isset($wrapper->$token_name)) {
+        $replacements += token_generate('wrapped-field', $chained_tokens, array('wrapped-field' => $wrapper->$token_name), $options);
+      }
+    } 
+  }
 
   return $replacements;
 }
@@ -420,7 +450,6 @@ function entity_token_legacy_properties() {
     'subject',
     'comment_body',
     'current_user',
-    'current_page',
     'parents_all',
     'weight',
     'last_access',
