@@ -16,6 +16,11 @@ class EntityTokenTestCase extends BackdropWebTestCase {
     parent::setUp('entity_token', 'entity_plus', 'file');
     $admin_user = $this->backdropCreateUser(array('create post content', 'bypass node access', 'administer nodes'));
     $this->backdropLogin($admin_user);
+
+    // Tests require cache clear since all installations 
+    // and tests are done all in one request. 
+    field_cache_clear();
+    entity_property_info_cache_clear();
   }
 
   /**
@@ -43,7 +48,7 @@ class EntityTokenTestCase extends BackdropWebTestCase {
 
     // Test basic tokens.
     $node = $this->backdropCreateNode(array('sticky' => TRUE, 'promote' => FALSE));
-    $text = "Sticky: [node:sticky] Promote: [node:promote] User: [site:current-user:name]";
+    $text = "Sticky: [node:sticky] Promote: [node:promote] User: [site:current_user:name]";
     $true = t('true');
     $false = t('false');
     $user_name = $GLOBALS['user']->name;
@@ -51,7 +56,8 @@ class EntityTokenTestCase extends BackdropWebTestCase {
     $replace = token_replace($text, array('node' => $node));
     $this->assertEqual($replace, $target, 'Provided tokens basically work.');
 
-    // Test multiple-value tokens using the tags field of articles.
+    //Test multiple-value tokens using the tags field of articles.
+
     for ($i = 0; $i < 4; $i++) {
       $tags[$i] = entity_plus_property_values_create_entity('taxonomy_term', array(
         'name' => $this->randomName(),
@@ -61,42 +67,49 @@ class EntityTokenTestCase extends BackdropWebTestCase {
       $labels[$i] = $tags[$i]->label();
     }
     $node = $this->backdropCreateNode(array('title' => 'foo', 'type' => 'post', 'field_tags' => $field_value));
+    $this->verbose('<pre>' . print_r($node, TRUE) . '</pre>');
+    $this->verbose('<pre>' . print_r($tags, TRUE) . '</pre>');
 
-    $text = "Tags: [node:field-tags] First: [node:field-tags:0] 2nd name: [node:field-tags:1:name] 1st vocab [node:field-tags:0:vocabulary]";
+    // Test chained field replacements
+    $text = "Tags: [node:field_tags] First: [node:field_tags:0] 2nd name: [node:field_tags:1:name] 1st vocab [node:field_tags:0:vocabulary]";
     $tag_labels = implode(', ', $labels);
     $target = "Tags: $tag_labels First: $labels[0] 2nd name: $labels[1] 1st vocab {$tags[0]->vocabulary->label()}";
     $replace = token_replace($text, array('node' => $node));
     $this->assertEqual($replace, $target, 'Multiple-value token replacements have been replaced.');
 
     // Make sure not existing values are not handled.
-    $replace = token_replace("[node:field-tags:43]", array('node' => $node));
-    $this->assertEqual($replace, "[node:field-tags:43]", 'Not existing values are not replaced.');
+    $replace = token_replace("[node:field_tags:43]", array('node' => $node));
+    $this->assertEqual($replace, "[node:field_tags:43]", 'Not existing values are not replaced.');
 
     // Test data-structure tokens like [site:current-page:url].
-    $replace = token_replace("[site:current-page:url]", array());
+    $replace = token_replace("[site:current_page:url]", array());
+    $this->verbose('<pre>' . print_r($replace, TRUE) . '</pre>');
     $this->assertEqual($replace, $GLOBALS['base_root'] . request_uri(), 'Token replacements of data structure properties replaced.');
 
-    // Test chaining of data-structure tokens using an image-field.
-    $file = $this->createFile('image');
+    // Image field tokens are currently handled by core
+    // @todo Create a test for a different type of chained field token.
+    
+  //   // Test chaining of data-structure tokens using an image-field.
+  //   $file = $this->createFile('image');
 
-    // Create node to edit.
-    $edit = array();
-    $edit['title'] = $this->randomName(8);
-    $this->backdropPost('node/add/post', $edit, t('Save'));
+  //   // Create node to edit.
+  //   $edit = array();
+  //   $edit['title'] = $this->randomName(8);
+  //   $this->backdropPost('node/add/post', $edit, t('Save'));
 
-    // Check that the node exists in the database.
-    $node = $this->backdropGetNodeByTitle($edit['title']);
-    $this->backdropGet('node/' . $node->nid . '/edit');
+  //   // Check that the node exists in the database.
+  //   $node = $this->backdropGetNodeByTitle($edit['title']);
+  //   $this->backdropGet('node/' . $node->nid . '/edit');
 
-   // $edit['files[' . $field_name . '_' . LANGUAGE_NONE . '_0]'] = backdrop_realpath($image->uri);
-    $node_edit = array(
-      'field_image[und][0][fid]' => $file->fid,
-    );
-    $this->backdropPost('node/' . $node->nid . '/edit', $node_edit, t('Save'));
-    $wrapper = entity_metadata_wrapper('node', $node);
+  //  // $edit['files[' . $field_name . '_' . LANGUAGE_NONE . '_0]'] = backdrop_realpath($image->uri);
+  //   $node_edit = array(
+  //     'field_image[und][0][fid]' => $file->fid,
+  //   );
+  //   $this->backdropPost('node/' . $node->nid . '/edit', $node_edit, t('Save'));
+  //   $wrapper = entity_metadata_wrapper('node', $node);
 
-    $wrapper->field_image = array('fid' => $file->fid);
-    $replace = token_replace("[node:field-image:file:name]", array('node' => $node));
-    $this->assertEqual($replace, $wrapper->field_image->file->name->value(), 'Token replacements of an image field have been replaced.');
+  //   $wrapper->field_image = array('fid' => $file->fid);
+  //   $replace = token_replace("[node:field-image:file:name]", array('node' => $node));
+  //   $this->assertEqual($replace, $wrapper->field_image->file->name->value(), 'Token replacements of an image field have been replaced.');
   }
 }
