@@ -92,6 +92,13 @@ function entity_token_token_info_alter(&$info) {
     'entity-token' => TRUE,
   );
 
+  $info['tokens']['site']['current_page'] = array(
+    'name' => 'Current page',
+    'description' => t('Information related to the current page request. The following properties may be appended to the token: path, url.'),
+    'type' => 'struct',
+    'entity-token' => TRUE,
+  );
+
   // Tokens for type term.
   $info['tokens']['term']['parents_all'] = array(
     'name' => 'All parent terms',
