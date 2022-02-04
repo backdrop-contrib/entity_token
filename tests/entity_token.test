@@ -13,32 +13,67 @@ class EntityTokenTestCase extends BackdropWebTestCase {
   protected $profile = 'standard';
 
   function setUp() {
-    parent::setUp('entity_token', 'entity_plus', 'file');
-    $admin_user = $this->backdropCreateUser(array('create post content', 'bypass node access', 'administer nodes'));
+    parent::setUp('entity_token', 'entity_plus', 'field', 'field_ui');
+    $admin_user = $this->backdropCreateUser(array('bypass node access', 'administer nodes', 'access content', 'administer content types', 'administer fields',));
     $this->backdropLogin($admin_user);
+
+    module_load_include('inc', 'node', 'content_types');
+    module_load_include('inc', 'field', 'field.crud');
 
     // Tests require cache clear since all installations 
     // and tests are done all in one request. 
     field_cache_clear();
     entity_property_info_cache_clear();
+
+    $edit = array();
+    $edit['name'] = 'Story';
+    $edit['type'] = 'story';
+    $this->backdropPost('admin/structure/types/add', $edit, t('Save content type'));
+    $this->assertText('The content type Story has been added.', 'Content type added.');
   }
 
   /**
-   * Creates a random file of the given type.
+   * Creates field from an array of settings values.
+   *
+   * All values have defaults, only need to specify values that need to be
+   * different.
    */
-  protected function createFile($file_type = 'text') {
-    // Create a managed file.
-    $file = current($this->backdropGetTestFiles($file_type));
+  protected function createLinkField() {
 
-    // Set additional file properties and save it.
-    $file->filemime = file_get_mimetype($file->filename);
-    $file->uid = 1;
-    $file->timestamp = REQUEST_TIME;
-    $file->filesize = filesize($file->uri);
-    $file->status = 0;
-    $file =  new File((array) $file);
-    file_save($file);
-    return $file;
+    $field = array(
+      'field_name' => 'field_links',
+      'type' => 'link_field',
+      'cardinality' => '2',
+      'bundles' => array (
+        'node' => array (
+          'story',
+        ),
+      ),
+    );
+
+    $instance = array(
+      'field_name' => 'field_links',
+      'entity_type' => 'node',
+      'bundle' => 'story',
+      'label' => 'My links',
+      'description' => '',
+      'required' => 0,
+      'deleted' => 0,
+      'default_value' => NULL,
+      'default_value_function' => NULL,
+      'display' => array (
+        'default' => array (
+          'label' => 'hidden',
+          'type' => 'link_default',
+          'module' => 'link',
+          'weight' => 4,
+        ),
+      ),
+    );
+
+    field_create_field($field);
+    field_create_instance($instance);
+
   }
 
   /**
@@ -86,30 +121,47 @@ class EntityTokenTestCase extends BackdropWebTestCase {
     $this->verbose('<pre>' . print_r($replace, TRUE) . '</pre>');
     $this->assertEqual($replace, $GLOBALS['base_root'] . request_uri(), 'Token replacements of data structure properties replaced.');
 
-    // Image field tokens are currently handled by core
-    // @todo Create a test for a different type of chained field token.
-    
-  //   // Test chaining of data-structure tokens using an image-field.
-  //   $file = $this->createFile('image');
 
-  //   // Create node to edit.
-  //   $edit = array();
-  //   $edit['title'] = $this->randomName(8);
-  //   $this->backdropPost('node/add/post', $edit, t('Save'));
+    // Test multi-value field with multiple properties.
+    $this->createLinkField();
+    $wrapper = entity_plus_property_values_create_entity('node', array(
+      'type' => 'story',
+      'title' => 'Test',
+      'field_links' => array(
+        array('url' => 'https://example.com', 'title' => 'Example 1'),
+        array('url' => 'https://example2.com', 'title' => 'Example 2'),
+      )
+    ));
+    $node = $wrapper->value();
 
-  //   // Check that the node exists in the database.
-  //   $node = $this->backdropGetNodeByTitle($edit['title']);
-  //   $this->backdropGet('node/' . $node->nid . '/edit');
+    // Create several tokens. Include dashes or underscores.
+    $tokens = array(
+      'field_links:0:url' => $wrapper->field_links[0]->url->value(),
+      'field-links:1:url' => $wrapper->field_links[1]->url->value(),
+      'field_links:1:title' => $wrapper->field_links[1]->title->value(),
+      'field-links:2:url' => NULL,
+    );
 
-  //  // $edit['files[' . $field_name . '_' . LANGUAGE_NONE . '_0]'] = backdrop_realpath($image->uri);
-  //   $node_edit = array(
-  //     'field_image[und][0][fid]' => $file->fid,
-  //   );
-  //   $this->backdropPost('node/' . $node->nid . '/edit', $node_edit, t('Save'));
-  //   $wrapper = entity_metadata_wrapper('node', $node);
+    $input = $this->mapTokenNames('node', array_keys($tokens));
+    $replacements = token_generate('node', $input, array('node' => $node));
+    foreach ($tokens as $name => $expected) {
+      $token = $input[$name];
+      if (!isset($expected)) {
+        $this->assertTrue(!isset($replacements[$token]), t("Token value for @token was not generated.", array('@token' => $token)));
+      } else {
+        $this->assertIdentical($replacements[$token], $expected, t("Token value for @token was '@actual', expected value '@expected'.", array('@token' => $token, '@actual' => $replacements[$token], '@expected' => $expected)));
+      }
+    }
+  }
 
-  //   $wrapper->field_image = array('fid' => $file->fid);
-  //   $replace = token_replace("[node:field-image:file:name]", array('node' => $node));
-  //   $this->assertEqual($replace, $wrapper->field_image->file->name->value(), 'Token replacements of an image field have been replaced.');
+  /**
+   * Helper function that creates a properly formatted token map. 
+   */
+  function mapTokenNames($type, array $tokens = array()) {
+    $return = array();
+    foreach ($tokens as $token) {
+      $return[$token] = "[$type:$token]";
+    }
+    return $return;
   }
 }

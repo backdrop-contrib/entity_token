@@ -92,13 +92,6 @@ function entity_token_token_info_alter(&$info) {
     'entity-token' => TRUE,
   );
 
-  $info['tokens']['site']['current_page'] = array(
-    'name' => 'Current page',
-    'description' => t('Information related to the current page request. The following properties may be appended to the token: path, url.'),
-    'type' => 'struct',
-    'entity-token' => TRUE,
-  );
-
   // Tokens for type term.
   $info['tokens']['term']['parents_all'] = array(
     'name' => 'All parent terms',
@@ -197,16 +190,22 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
     $property_name_list = array();
 
     foreach ($tokens as $name => $original) {
+      $property_name = isset($entity_properties[$name]) ? $name : str_replace('-', '_', $name);
       // Fulfill simple, unchained, D7 legacy tokens for core entities, and unchained tokens for custom entities.
-      if (isset($token_info['tokens'][$type][$name]) && isset($token_info['tokens'][$type][$name]['entity-token']) && $token_info['tokens'][$type][$name]['entity-token']) {
+      if ((isset($token_info['tokens'][$type][$property_name]['entity-token']) && $token_info['tokens'][$type][$property_name]['entity-token']) || 
+        (isset($token_info['tokens'][$type][$name]['entity-token']) && $token_info['tokens'][$type][$name]['entity-token'])) {
         
         // Skip if this is an unchained field - those are fulfilled by core.
-        if(!empty($field_info_map[$name])) {
+        if(!empty($field_info_map[$property_name])) {
+          // Intercept unchained field tokens with dashes and resend them for core replacement.
+          if ($name !== $property_name) {
+            $replacements += token_generate($type, array($property_name => $original), $data, $options);
+          }
           continue;
         }
         try {
-          if (isset($wrapper->$name)) {
-            $replacement = _entity_token_get_token($wrapper->$name, $options);
+          if (isset($wrapper->$property_name)) {
+            $replacement = _entity_token_get_token($wrapper->$property_name, $options);
             if (isset($replacement)) {
               $replacements[$original] = $replacement;
             }
@@ -219,44 +218,44 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
       // Care for chained field tokens, and for chained non-field tokens of non-core entities.
       elseif (strpos($name, ':') !== FALSE) {
         $name_parts = explode(':', $name);
-        // Check if this is a field
-        if (!empty($name_parts[0]) && isset($wrapper->{$name_parts[0]}) ) {
-          $field_name = $name_parts[0];
+        // Check if this is a field or a property
+        $field_name = str_replace('-', '_', $name_parts[0]);
+        if (!empty($name_parts[0]) && isset($wrapper->{$field_name}) ) {
 
-          // Only add fields to the list. Do not add image or date fields as those are fulfilled by core.
+          // Only add fields to the list. Do not add image or date fields as those are now fulfilled by core.
           if (!empty($field_info_map[$field_name])) {
             if (strpos($field_info_map[$field_name]['type'], 'date') === FALSE || strpos($field_info_map[$field_name]['type'], 'image') === FALSE) {
               // Collect the name of the field
-              $field_name_list[$field_name] = TRUE;
+              $field_name_list[$name_parts[0]] = $field_name;
             }
           } 
           // Care for non-field chained tokens, but ONLY if this is "ours".
-          elseif (isset($token_info['tokens'][$type][$field_name]) && isset($token_info['tokens'][$type][$field_name]['entity-token']) && $token_info['tokens'][$type][$field_name]['entity-token']) {
-            $property_name_list[$field_name] = TRUE;
+          elseif ((isset($token_info['tokens'][$type][$field_name]['entity-token']) && $token_info['tokens'][$type][$field_name]['entity-token']) || 
+            (isset($token_info['tokens'][$type][$name_parts[0]]['entity-token']) && $token_info['tokens'][$type][$name_parts[0]]['entity-token'])
+            ) {
+            $property_name_list[$name_parts[0]] = $field_name;
           }
         }
       }
     }
 
     // Now process tokens for each of the chained fields collected above
-    foreach (array_keys($field_name_list) as $field_name) {
-      $chained_tokens = token_find_with_prefix($tokens, $field_name);
-      if (isset($wrapper->$field_name)) {
-        $replacements += token_generate('wrapped-field', $chained_tokens, array('wrapped-field' => $wrapper->$field_name), $options);
-      }
+    foreach ($field_name_list as $token_name => $field_name ) {
+      $chained_tokens = token_find_with_prefix($tokens, $token_name);
+      $replacements += token_generate('wrapped-field', $chained_tokens, array('wrapped-field' => $wrapper->$field_name), $options);
     } 
 
     // Now process tokens for each of the chained properties collected above
-    foreach (array_keys($property_name_list) as $property_name) {
+    foreach ($property_name_list as $token_name => $property_name) {
       $chained_type = entity_token_determine_type($entity_properties[$property_name]);
-      $property_tokens = token_find_with_prefix($tokens, $property_name);
+      $property_tokens = token_find_with_prefix($tokens, $token_name);
       $replacements += token_generate($chained_type, $property_tokens, array($chained_type => $wrapper->{$property_name}->value()), $options);
     }
   } // End of process for $data that's an entity keyed by entity type.
   
   // Process tokens of type 'wrapped-field', generated by the above code.
-  // The data passed here is a metadata wrapper of a field
-  // At the moment only CHAINED tokens are passed here (except those for image and date fields, which are handled by core)
+  // The data passed here is a metadata wrapper of a field.
+  // At the moment only CHAINED tokens are passed here (except those for image and date fields, which are handled by core).
   // since unchained field tokens are always handled by core.
   // The $tokens variable starts with the first property or delta to be fulfilled.
   elseif ($type == 'wrapped-field' && isset($data[$type]) && !empty($data[$type]) && is_a($data[$type], 'EntityMetadataWrapper')){
@@ -270,29 +269,19 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
       if (empty($name_parts[0]) && $name_parts[0] != '0') {
         continue;
       }
-
       if ($token_type_from_wrapper == 'file') {
         // Get the file object from the wrapper. We send the object (not the wrapper) to core
         // file tokens fulfilled in system_tokens().
         $new_data = $wrapper->file->value();
 
-      } elseif (empty($token_type_from_wrapper)) {
-        // We are dealing with text. Generate the replacement right here
-        try { 
-          if (isset($wrapper->{$name_parts[0]})) {
-            $replacement = _entity_token_get_token($wrapper->{$name_parts[0]}, $options);
-          }
-        } catch (EntityMetadataWrapperException $e) {
-          // if this doesn't work, do nothing
-        }
-
       } elseif ($token_type_from_wrapper == 'struct') {
         // If this is a struct we'll pass the wrapper verbatim
         $new_data = $wrapper; 
 
+        // @todo Find a better way to check for list.
       } elseif (strpos($token_type_from_wrapper, 'list')!== FALSE) {
-        // Token types that include list are multi-value fields
-        // Only pass it if the delta is numeric
+        // Token types that include list are multi-value fields.
+        // Only pass it if the delta is numeric.
         if (is_numeric($name_parts[0])) {
           $new_data = $wrapper;
         }
@@ -302,11 +291,7 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
         $new_data = $wrapper->value();
       }
 
-      if (!empty($replacement) || (string) $replacement === '0') {
-        // Produce the replacement here
-        $replacements[$original] = $replacement;
-
-      } elseif (!empty($new_data)) {
+      if (!empty($new_data)) {
         // Generate tokens for struct and list<something>
         $replacements += token_generate($token_type_from_wrapper, array($name => $original), array($token_type_from_wrapper => $new_data), $options);
       }
@@ -407,9 +392,10 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
     $wrapper = entity_plus_metadata_site_wrapper();
     $chained_token_names = array();
     foreach ($tokens as $name => $original) {
-      if (!empty($token_info['tokens'][$type][$name]['entity-token'])) {;
+      $property_name = str_replace('-', '_', $name);
+      if (!empty($token_info['tokens'][$type][$property_name]['entity-token'])) {;
         try {
-          if (isset($wrapper->$name)) {
+          if (isset($wrapper->$property_name)) {
             $replacement = _entity_token_get_token($wrapper->$name, $options);
             if (isset($replacement)) {
               $replacements[$original] = $replacement;
@@ -424,44 +410,22 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
       elseif (strpos($name, ':') !== FALSE) {
         $name_parts = explode(':', $name);
         // Check if this is a property
-        if (!empty($name_parts[0]) && isset($wrapper->{$name_parts[0]}) ) {
-          $token_name = $name_parts[0];
+        $property_name = str_replace('-', '_', $name_parts[0]);
+        if (!empty($property_name) && isset($wrapper->{$property_name}) ) {
           // Collect the name of the property
-          $chained_token_names[$token_name] = TRUE;
+          $chained_token_names[$name_parts[0]] = TRUE;
         }
       }
     }
     foreach (array_keys($chained_token_names) as $token_name) {
       $chained_tokens = token_find_with_prefix($tokens, $token_name);
-      if (isset($wrapper->$token_name)) {
-        $replacements += token_generate('wrapped-field', $chained_tokens, array('wrapped-field' => $wrapper->$token_name), $options);
+      if (isset($wrapper->$property_name)) {
+        $replacements += token_generate('wrapped-field', $chained_tokens, array('wrapped-field' => $wrapper->$property_name), $options);
       }
     } 
   }
 
   return $replacements;
-}
-
-
-/** 
- * Returns a list of entity tokens that are not provided
- * by core.
- */
-function entity_token_legacy_properties() {
-  return array(
-    'is_new',
-    'status',
-    'promote',
-    'sticky',
-    'revision',
-    'subject',
-    'comment_body',
-    'current_user',
-    'parents_all',
-    'weight',
-    'last_access',
-    'theme',
-  );
 }
 
 /**
@@ -518,6 +482,9 @@ function _entity_token_get_token($wrapper, $options) {
  * Helper to determine the token type based on the property info
  */
 function entity_token_determine_type($property_info) {
+  if (empty($property_info)) {
+    return;
+  }
   $property_type = !empty($property_info['type']) ? $property_info['type'] : 'text';
   $is_list = strpos($property_type, 'list') !== FALSE;
   if ($is_list) {
@@ -558,43 +525,6 @@ function _entity_token_get_token_type_from_property_type($field_type) {
 
     default:
       return $field_type;
-  }
-}
-
-/** 
- * Helper to get the entity type from token type
- * For most this is the same, except (in core) for token term
- * @todo rewrite to build this list from entity_info
- */
-function _entity_token_get_entity_from_token($token_type) {
-  switch ($token_type) {
-    case 'term':
-      return 'taxonomy_term';
-      break;
-
-    case 'date':
-      return 'date';
-      break;
-
-    case 'node':
-      return 'node';
-      break;
-
-    case 'comment':
-      return 'comment';
-      break;
-
-    case 'link':
-      return 'link';
-      break;
-
-    case 'site':
-      return 'site';
-      break;
-
-    default:
-      // for text for example
-      return NULL;
   }
 }
 
