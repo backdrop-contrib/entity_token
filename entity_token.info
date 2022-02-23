@@ -1,4 +1,4 @@
-name = Entity tokens
+name = Entity Tokens
 description = Provides token replacements for all properties that have no tokens and are known to the entity API.
 backdrop = 1.x
 type = module
