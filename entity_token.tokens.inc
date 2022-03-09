@@ -548,7 +548,6 @@ function _entity_token_is_core_entity($entity_type) {
     // we treat its entities as core to avoid duplications.
     'uc_order',
     'uc_cart_item',
-    'uc_order_product',
-  )
+    )
   );
 }
