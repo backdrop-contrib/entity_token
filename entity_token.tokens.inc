@@ -44,21 +44,23 @@ function entity_token_token_info_alter(&$info) {
   );
 
   // Tokens for type comment.
-  $info['tokens']['comment']['subject'] = array(
-    'name' => 'Subject',
-    'description' => t('The subject of the comment.'),
-    'entity-token' => TRUE,
-  );
-  $info['tokens']['comment']['status'] = array(
-    'name' => 'Status',
-    'description' => t('Whether the comment is published or unpublished.'),
-    'entity-token' => TRUE,
-  );
-  $info['tokens']['comment']['comment_body'] = array(
-    'name' => 'Comment',
-    'description' => t('Field "comment_body". The following properties may be appended to the token: value (Text), format (Text format)'),
-    'entity-token' => TRUE,
-  );
+  if (module_exists('comment')) {
+    $info['tokens']['comment']['subject'] = array(
+      'name' => 'Subject',
+      'description' => t('The subject of the comment.'),
+      'entity-token' => TRUE,
+    );
+    $info['tokens']['comment']['status'] = array(
+      'name' => 'Status',
+      'description' => t('Whether the comment is published or unpublished.'),
+      'entity-token' => TRUE,
+    );
+    $info['tokens']['comment']['comment_body'] = array(
+      'name' => 'Comment',
+      'description' => t('Field "comment_body". The following properties may be appended to the token: value (Text), format (Text format)'),
+      'entity-token' => TRUE,
+    );
+  }
 
   // Tokens for type user.
   $info['tokens']['user']['status'] = array(
