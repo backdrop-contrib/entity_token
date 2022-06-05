@@ -111,6 +111,11 @@ function entity_token_token_info_alter(&$info) {
   $entity_info = entity_get_info();
   $field_info_map = field_info_field_map();
   foreach ($entity_info as $entity_name => $entity_info_array) {
+    // If the entity doesn't have any properties, skip.
+    if (!count(entity_plus_get_all_property_info($entity_name))) {
+      continue;
+    }
+
     $token_type_for_entity = isset($entity_info_array['token type']) ? $entity_info_array['token type'] : $entity_name;
 
     // Create token types for all non-core entities that don't already exist.
