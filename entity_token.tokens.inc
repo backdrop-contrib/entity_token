@@ -278,12 +278,7 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
       if (empty($name_parts[0]) && $name_parts[0] != '0') {
         continue;
       }
-      if ($token_type_from_wrapper == 'file') {
-        // Get the file object from the wrapper. We send the object (not the wrapper) to core
-        // file tokens fulfilled in system_tokens().
-        $new_data = $wrapper->file->value();
-
-      } elseif ($token_type_from_wrapper == 'struct') {
+      if ($token_type_from_wrapper == 'struct') {
         // If this is a struct we'll pass the wrapper verbatim
         $new_data = $wrapper; 
 
@@ -348,11 +343,6 @@ function entity_token_tokens($type, $tokens, array $data = array(), array $optio
             case 'struct':
               // We pass the wrapper to the element.
               $pass_data = $data[$type]->get($name_parts[0]);
-              break;
-  
-            case 'file':
-              // We need to pass the file object.
-              $pass_data = $data[$type]->get($name_parts[0])->file->value();
               break;
 
             default:
@@ -511,26 +501,19 @@ function _entity_token_get_token_type_from_property_type($field_type) {
   switch ($field_type) {
     case 'taxonomy_term':
       return 'term';
-      break;
 
     case 'datetime':
     case 'date':
     case 'datestamp':
       return 'date';
-      break;
-
-    case 'field_item_file':
-      return 'file';
-      break;
 
     case 'text_formatted':
     case 'field_item_link':
+    case 'field_item_file':
       return 'struct';
-      break;
 
     case 'field_item_image':
       return 'image';
-      break;
 
     default:
       return $field_type;
