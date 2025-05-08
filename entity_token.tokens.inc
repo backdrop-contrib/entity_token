@@ -133,7 +133,7 @@ function entity_token_token_info_alter(&$info) {
     foreach (entity_plus_get_all_property_info($entity_name) as $name => $property) {
       // Skip touching the definitions for image and date fields, 
       // as these are created in core.
-      if (!empty($property['field']) && in_array($field_info_map[$name]['type'], array('date', 'datetime', 'datestamp', 'image',))) {
+      if (!empty($property['field']) && isset($field_info_map[$name]) && in_array($field_info_map[$name]['type'], array('date', 'datetime', 'datestamp', 'image',))) {
         continue;
       }
 
